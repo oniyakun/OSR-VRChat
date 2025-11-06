@@ -10,6 +10,7 @@ class StrokeHandler(BaseHandler):
         self.SETTINGS = SETTINGS
         self.OSR_CONN = None
         self.stop_flag = 0
+        self.use_udp = SETTINGS['osr2']['use_udp']
 
         self.stroke_settings = SETTINGS['osr2']
         self.objective = self.stroke_settings['objective']
@@ -179,7 +180,10 @@ class StrokeHandler(BaseHandler):
         logger.info(f"Level:{new_level}, duration:{duration}")
         tcode = self.build_tcode_velocity(new_level, abs(new_velocity))
         if not self.OSR_CONN is None:
-            await self.OSR_CONN.async_write_to_serial(tcode)
+            if (self.use_udp == False):
+                await self.OSR_CONN.write_to_serial(tcode)
+            else:
+                await self.OSR_CONN.write_to_udp(tcode)
         return
     
     def start_background_jobs(self):

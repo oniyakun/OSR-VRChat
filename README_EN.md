@@ -104,10 +104,6 @@ web_server:
 osc:
   listen_host: "127.0.0.1"      # OSC listen address
   listen_port: 9001             # OSC listen port
-
-ws:
-  listen_host: "0.0.0.0"        # WebSocket listen address
-  listen_port: 28846            # WebSocket port
 ```
 
 ## Usage
@@ -249,7 +245,6 @@ The program outputs detailed logs to console during runtime, including:
 - **python-osc**: OSC protocol support
 - **loguru**: Logging
 - **PyYAML**: Configuration file parsing
-- **websockets**: WebSocket support
 
 ### Extension Development
 

@@ -327,19 +327,30 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="com_port" class="form-label"><i class="bi bi-usb"></i> 串口端口</label>
-                                        <select class="form-select" id="com_port" name="com_port">
-                                            <option value="COM1">COM1</option>
-                                            <option value="COM2">COM2</option>
-                                            <option value="COM3">COM3</option>
-                                            <option value="COM4">COM4</option>
-                                            <option value="COM5">COM5</option>
-                                            <option value="COM6">COM6</option>
-                                            <option value="COM7">COM7</option>
-                                            <option value="COM8">COM8</option>
-                                        </select>
+                                        <input type="text" class="form-control" id="com_port" name="com_port">
+                                        </input>
                                     </div>
                                     <div class="mb-3">
-                                        <label for="objective" class="form-label"><i class="bi bi-target"></i>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="use_udp"
+                                                name="use_udp">
+                                            <label class="form-check-label" for="use_udp">
+                                                <i class="bi bi-wifi"></i> UDP连接
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="udp_server_ip" class="form-label"><i class="bi bi-server"></i> UDP服务器IP</label>
+                                        <input type="text" class="form-control" id="udp_server_ip" name="udp_server_ip">
+                                        </input>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="udp_server_port" class="form-label"><i class="bi bi-ethernet"></i> UDP端口</label>
+                                        <input type="text" class="form-control" id="udp_server_port" name="udp_server_port">
+                                        </input>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="objective" class="form-label"><i class="bi bi-arrow-down-right"></i>
                                             动作目标</label>
                                         <select class="form-select" id="objective" name="objective">
                                             <option value="inserting_others">插入别人</option>
@@ -509,20 +520,12 @@
                                     </div>
                                     <div class="mb-3">
                                         <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" id="auto_open_qr_web_page"
-                                                name="auto_open_qr_web_page">
-                                            <label class="form-check-label" for="auto_open_qr_web_page">
+                                            <input class="form-check-input" type="checkbox" id="auto_open_web_page"
+                                                name="auto_open_web_page">
+                                            <label class="form-check-label" for="auto_open_web_page">
                                                 <i class="bi bi-qr-code"></i> 自动打开网页
                                             </label>
                                         </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="ws_listen_port" class="form-label"><i class="bi bi-diagram-3"></i>
-                                            WebSocket 端口</label>
-                                        <input type="number" class="form-control" id="ws_listen_port"
-                                            name="ws_listen_port" min="1" max="65535">
                                     </div>
                                 </div>
                             </div>
@@ -598,6 +601,9 @@
 
                 // Populate OSR settings
                 document.getElementById('com_port').value = config.osr2.com_port;
+                document.getElementById('use_udp').checked = config.osr2.use_udp;
+                document.getElementById('udp_server_ip').value = config.osr2.udp_server_ip;
+                document.getElementById('udp_server_port').value = config.osr2.udp_server_port;
                 document.getElementById('objective').value = config.osr2.objective;
                 document.getElementById('max_pos').value = config.osr2.max_pos;
                 document.getElementById('min_pos').value = config.osr2.min_pos;
@@ -621,8 +627,7 @@
 
                 // Populate Advanced settings
                 document.getElementById('log_level').value = config.log_level;
-                document.getElementById('auto_open_qr_web_page').checked = config.general.auto_open_qr_web_page;
-                document.getElementById('ws_listen_port').value = config.ws.listen_port;
+                document.getElementById('auto_open_web_page').checked = config.general.auto_open_web_page;
 
                 showAlert('配置加载成功', 'success');
             } catch (error) {
@@ -637,6 +642,9 @@
                 const config = {
                     osr2: {
                         com_port: document.getElementById('com_port').value,
+                        use_udp: document.getElementById('use_udp').checked,
+                        udp_server_ip: document.getElementById('udp_server_ip').value,
+                        udp_server_port: parseInt(document.getElementById('udp_server_port').value),
                         objective: document.getElementById('objective').value,
                         max_pos: parseInt(document.getElementById('max_pos').value),
                         min_pos: parseInt(document.getElementById('min_pos').value),
@@ -660,10 +668,7 @@
                     },
                     log_level: document.getElementById('log_level').value,
                     general: {
-                        auto_open_qr_web_page: document.getElementById('auto_open_qr_web_page').checked
-                    },
-                    ws: {
-                        listen_port: parseInt(document.getElementById('ws_listen_port').value)
+                        auto_open_web_page: document.getElementById('auto_open_web_page').checked
                     }
                 };
 

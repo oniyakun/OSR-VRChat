@@ -106,10 +106,6 @@ web_server:
 osc:
   listen_host: "127.0.0.1"      # OSC监听地址
   listen_port: 9001             # OSC监听端口
-
-ws:
-  listen_host: "0.0.0.0"        # WebSocket监听地址
-  listen_port: 28846            # WebSocket端口
 ```
 
 ## 使用方法
@@ -251,7 +247,6 @@ A: 检查防火墙设置，确认端口8800未被占用
 - **python-osc**: OSC协议支持
 - **loguru**: 日志记录
 - **PyYAML**: 配置文件解析
-- **websockets**: WebSocket支持
 
 ### 扩展开发
 

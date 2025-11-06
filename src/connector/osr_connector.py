@@ -4,6 +4,8 @@ import sys
 import time
 import asyncio
 import glob
+import socket
+from loguru import logger
 
 
 def serial_ports():
@@ -35,10 +37,12 @@ def serial_ports():
     return result
 
 class OSRConnector:
-    def __init__(self, port='COM3', baudrate=115200):
+    def __init__(self, ip=None, port=None, baudrate=115200):
         self.port = port
         self.baudrate = baudrate
+        self.ip = ip
         self.ser = None
+        self.sock = None
         self.reader_thread = None
         self.writer_lock = threading.Lock()
 
@@ -49,14 +53,17 @@ class OSRConnector:
         await loop.run_in_executor(None, self._connect)
 
     def _connect(self):
-        try:
-            self.ser = serial.Serial(self.port, self.baudrate)
-            # self.reader_thread = threading.Thread(target=self.read_from_serial, daemon=True)
-            # self.reader_thread.start()
-            print(f"Connected to {self.port} at {self.baudrate} baud.")
-        except Exception as e:
-            print(f"Error connecting to serial port: {e}")
-            self.ser = None
+        if (self.ip == None):
+            try:
+                self.ser = serial.Serial(self.port, self.baudrate)
+                # self.reader_thread = threading.Thread(target=self.read_from_serial, daemon=True)
+                # self.reader_thread.start()
+                logger.info(f"Connected to {self.port} at {self.baudrate} baud.")
+            except Exception as e:
+                logger.error(f"Error connecting to serial port: {e}")
+                self.ser = None
+        else:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     # def read_from_serial(self):
     #     #只发送，不接收
@@ -73,28 +80,24 @@ class OSRConnector:
     async def disconnect(self):
         if self.ser and self.ser.is_open:
             self.ser.close()
-            print(f"Disconnected from {self.port}.")
+            logger.info(f"Disconnected from {self.port}.")
         else:
-            print("No connection to disconnect.")
+            logger.info("No connection to disconnect.")
+    
+    async def write_to_udp(self, *lines):
+        if self.sock:
+            for line in lines:
+                logger.info(f"[UDP SEND] {line}")
+                self.sock.sendto(f"{line}\n".encode('utf-8'), (self.ip, self.port))
 
-
-    async def async_write_to_serial(self, *lines):
+    async def write_to_serial(self, *lines):
         if self.ser and self.ser.is_open:
             with self.writer_lock:
                 for line in lines:
-                    print(f"[SEND] {line}")
+                    logger.info(f"[SEND] {line}")
                     self.ser.write(f"{line}\n".encode('utf-8'))
         else:
-            print("[WARN] Disconnected, skipping stream write.")
-
-    def write_to_serial(self, *lines):
-        if self.ser and self.ser.is_open:
-            with self.writer_lock:
-                for line in lines:
-                    print(f"[SEND] {line}")
-                    self.ser.write(f"{line}\n".encode('utf-8'))
-        else:
-            print("[WARN] Disconnected, skipping stream write.")
+            logger.info("[WARN] Disconnected, skipping stream write.")
 
 # Usage
 # if __name__ == "__main__":

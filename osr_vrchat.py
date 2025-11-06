@@ -16,7 +16,7 @@ import webbrowser
 
 app = Flask(__name__, template_folder='templates')
 
-CONFIG_FILE_VERSION  = 'v0.1.2'
+CONFIG_FILE_VERSION  = 'v0.2.2'
 CONFIG_FILENAME = f'settings-advanced-{CONFIG_FILE_VERSION}.yaml'
 CONFIG_FILENAME_BASIC = f'settings-{CONFIG_FILE_VERSION}.yaml'
 MAX_LINECHART_POINTS = 100
@@ -44,6 +44,9 @@ SETTINGS = {
         # 'max_acceleration':5000,
         'updates_per_second': 50,
         'com_port':'COM4',
+        'use_udp': False,
+        'udp_server_ip': '192.168.1.100',
+        'udp_server_port': 8000,
         # 'ema_filter' : 0.7,
         'inserting_self': "/avatar/parameters/OGB/Pen/*",
         'inserting_others': "/avatar/parameters/OGB/Pen/*",
@@ -51,11 +54,6 @@ SETTINGS = {
         'inserted_pussy': "/avatar/parameters/OGB/Orf/Pussy/PenOthers"
     },
     'version': CONFIG_FILE_VERSION,
-    'ws':{
-        'master_uuid': None,
-        'listen_host': '0.0.0.0',
-        'listen_port': 28846 
-    },
     'osc':{
         'listen_host': '127.0.0.1',
         'listen_port': 9001,
@@ -66,7 +64,7 @@ SETTINGS = {
     },
     'log_level': 'INFO',
     'general': {
-        'auto_open_qr_web_page': True,
+        'auto_open_web_page': True,
         'local_ip_detect': {
             'host': '223.5.5.5',
             'port': 80,
@@ -89,19 +87,34 @@ async def async_main():
     global connector, transport, main_future
     main_future = asyncio.Future()
     # handlers[0].start_background_jobs()
-    try:
-        connector = OSRConnector(port=SETTINGS['osr2']['com_port'])
-        await connector.connect()
-        await connector.async_write_to_serial("L0100I500")
-        time.sleep(1)
-        await connector.async_write_to_serial("L0500I500")
-        time.sleep(1)
-        await connector.async_write_to_serial("L0900I500")
-        logger.success("OSR设备自检成功")
-    except Exception as e:
-        logger.error(traceback.format_exc())
-        logger.error("OSR设备连接失败，请检查串口地址是否正确，设备是否插紧")
-        return
+    if (SETTINGS['osr2']['use_udp'] == True):
+        try:
+            connector = OSRConnector(ip=SETTINGS['osr2']['udp_server_ip'], port=SETTINGS['osr2']['udp_server_port'])
+            await connector.connect()
+            await connector.write_to_udp("L0100I500")
+            time.sleep(1)
+            await connector.write_to_udp("L0500I500")
+            time.sleep(1)
+            await connector.write_to_udp("L0900I500")
+            logger.success("OSR设备自检指令已发送")
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error("OSR设备自检指令发送失败")
+            return
+    else:
+        try:
+            connector = OSRConnector(port=SETTINGS['osr2']['com_port'])
+            await connector.connect()
+            await connector.write_to_serial("L0100I500")
+            time.sleep(1)
+            await connector.write_to_serial("L0500I500")
+            time.sleep(1)
+            await connector.write_to_serial("L0900I500")
+            logger.success("OSR设备自检成功")
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error("OSR设备连接失败，请检查串口地址是否正确，设备是否插紧")
+            return
 
     for handler in handlers:
         handler.set_connector(connector)
@@ -117,11 +130,12 @@ async def async_main():
         finally:
             if transport:
                 transport.close()
+                logger.info("transport.close()")
             if connector:
                 # 使用同步方式关闭串口连接
-                if hasattr(connector, 'ser') and connector.ser and connector.ser.is_open:
+                if connector.ser and connector.ser.is_open:
                     connector.ser.close()
-                    print(f"Disconnected from {connector.port}.")
+                    logger.info(f"Disconnected from {connector.port}.")
 
     except Exception as e:
         logger.error(traceback.format_exc())
@@ -146,7 +160,6 @@ def config_init():
     logger.info(f'Init settings..., Config filename: {CONFIG_FILENAME}, Config version: {CONFIG_FILE_VERSION}.')
     global SETTINGS, SETTINGS_BASIC, SERVER_IP
     if not (os.path.exists(CONFIG_FILENAME)):
-        SETTINGS['ws']['master_uuid'] = str(uuid.uuid4())
         config_save()
         raise ConfigFileInited()
 
@@ -156,15 +169,12 @@ def config_init():
     if SETTINGS.get('version', None) != CONFIG_FILE_VERSION:# or SETTINGS_BASIC.get('version', None) != CONFIG_FILE_VERSION:
         logger.error(f"Configuration file version mismatch! Please delete the {CONFIG_FILENAME} files and run the program again to generate the latest version of the configuration files.")
         raise Exception(f'配置文件版本不匹配！请删除 {CONFIG_FILENAME} 文件后再次运行程序，以生成最新版本的配置文件。')
-    if SETTINGS['ws']['master_uuid'] is None:
-        SETTINGS['ws']['master_uuid'] = str(uuid.uuid4())
-        config_save()
     SERVER_IP = SETTINGS['SERVER_IP']# or get_current_ip()
 
     logger.remove()
     logger.add(sys.stderr, level=SETTINGS['log_level'])
-    logger.success("The configuration file initialization is complete. The WebSocket service needs to listen for incoming connections. If a firewall prompt appears, please click Allow Access.")
-    logger.success("配置文件初始化完成，Websocket服务需要监听外来连接，如弹出防火墙提示，请点击允许访问。")
+    logger.success("The configuration file initialization is complete. If a firewall prompt appears, please click Allow Access.")
+    logger.success("配置文件初始化完成，如弹出防火墙提示，请点击允许访问。")
 
 
 
@@ -200,8 +210,6 @@ def save_config():
             SETTINGS['osc'].update(new_config['osc'])
         if 'web_server' in new_config:
             SETTINGS['web_server'].update(new_config['web_server'])
-        if 'ws' in new_config:
-            SETTINGS['ws'].update(new_config['ws'])
         if 'general' in new_config:
             SETTINGS['general'].update(new_config['general'])
         if 'log_level' in new_config:
@@ -220,7 +228,10 @@ def get_status():
     """获取系统状态"""
     global connector, transport, th
     
-    device_connected = connector is not None and connector.ser is not None
+    if (SETTINGS['osr2']['use_udp'] == False):
+        device_connected = connector is not None and connector.ser is not None
+    else:
+        device_connected = connector is not None and connector.sock is not None
     osc_running = transport is not None
     main_running = th is not None and th.is_alive()
     
@@ -289,7 +300,7 @@ def restart_osr():
             # 使用同步方式关闭串口连接
             if hasattr(connector, 'ser') and connector.ser and connector.ser.is_open:
                 connector.ser.close()
-                print(f"Disconnected from {connector.port}.")
+                logger.info(f"Disconnected from {connector.port}.")
             connector = None
         
         # 确保transport关闭
@@ -317,7 +328,10 @@ def move_to_max_position():
         position_value = int(max_pos / 10)  # 将0-999映射到0-99
         command = f"L0{position_value:02d}"
         
-        connector.write_to_serial(command)
+        if (SETTINGS['osr2']['use_udp'] == False):
+            connector.write_to_serial(command)
+        else:
+            connector.write_to_udp(command)
         logger.info(f"发送最大位置命令: {command} (位置: {max_pos})")
         
         return jsonify({'success': True, 'message': f'已发送移动到最大位置命令 ({max_pos})'})
@@ -338,7 +352,10 @@ def move_to_min_position():
         position_value = int(min_pos / 10)  # 将0-999映射到0-99
         command = f"L0{position_value:02d}"
         
-        connector.write_to_serial(command)
+        if (SETTINGS['osr2']['use_udp'] == False):
+            connector.write_to_serial(command)
+        else:
+            connector.write_to_udp(command)
         logger.info(f"发送最小位置命令: {command} (位置: {min_pos})")
         
         return jsonify({'success': True, 'message': f'已发送移动到最小位置命令 ({min_pos})'})
@@ -400,8 +417,9 @@ def main():
     th = Thread(target=async_main_wrapper, daemon=True)
     th.start()
 
-    webbrowser.open_new_tab(f"http://127.0.0.1:{SETTINGS['web_server']['listen_port']}")
-    # app.run(SETTINGS['web_server']['listen_host'], SETTINGS['web_server']['listen_port'], debug=False)
+    if (SETTINGS['general']['auto_open_web_page'] == True):
+        webbrowser.open_new_tab(f"http://127.0.0.1:{SETTINGS['web_server']['listen_port']}")
+        # app.run(SETTINGS['web_server']['listen_host'], SETTINGS['web_server']['listen_port'], debug=False)
 
 if __name__ == "__main__":
     try:
@@ -422,5 +440,5 @@ if __name__ == "__main__":
         # 使用同步方式关闭串口连接
         if hasattr(connector, 'ser') and connector.ser and connector.ser.is_open:
             connector.ser.close()
-            print(f"Disconnected from {connector.port}.")
+            logger.info(f"Disconnected from {connector.port}.")
     time.sleep(1)
